@@ -1,16 +1,22 @@
-# React + Vite
+# Agree-Agri 🌱
 
-This template provides a minimal setup to get React working in Vite with HMR and some ESLint rules.
+**A two-sided B2B agricultural marketplace connecting farmers directly with bulk buyers.**
 
-Currently, two official plugins are available:
+Agree-Agri was built to eliminate middlemen in the agricultural supply chain. By allowing farmers to list their wholesale produce and buyers to post bulk requirements, we ensure farmers get fair market prices and buyers get fresh, traceable produce.
 
-- [@vitejs/plugin-react](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react) uses [Babel](https://babeljs.io/) (or [oxc](https://oxc.rs) when used in [rolldown-vite](https://vite.dev/guide/rolldown)) for Fast Refresh
-- [@vitejs/plugin-react-swc](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react-swc) uses [SWC](https://swc.rs/) for Fast Refresh
+## ✨ Features
 
-## React Compiler
+* **Role-Based Dashboards:** Distinct experiences for `Farmers` (sellers) and `Buyers` (purchasers).
+* **Secure Authentication:** User sign-up and login powered by Firebase Auth.
+* **Real-time Marketplace:** Buyers can browse active produce listings with current market rates.
+* **Farm Management:** Farmers can add, edit, and mark produce as "Sold Out".
+* **Image Uploads:** Seamless produce photo uploads using Firebase Storage.
+* **Demand Fulfillment:** Buyers can post custom bulk requirements (e.g., "Need 5000kg of Onions in Pune"), and farmers can click to fulfill them directly.
+* **Additional features:** we'll try to add few more features such as AI disease detection, Crop suggetion, etc.,.
 
-The React Compiler is not enabled on this template because of its impact on dev & build performances. To add it, see [this documentation](https://react.dev/learn/react-compiler/installation).
+## 🛠️ Tech Stack
 
-## Expanding the ESLint configuration
-
-If you are developing a production application, we recommend using TypeScript with type-aware lint rules enabled. Check out the [TS template](https://github.com/vitejs/vite/tree/main/packages/create-vite/template-react-ts) for information on how to integrate TypeScript and [`typescript-eslint`](https://typescript-eslint.io) in your project.
+* **Frontend:** React (Vite), Tailwind CSS
+* **Backend/Database:** Firebase Cloud Firestore
+* **Storage:** Firebase Storage
+* **Authentication:** Firebase Auth
