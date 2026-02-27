@@ -1,4 +1,9 @@
 import React, { useState } from 'react';
+import { 
+  FiActivity, FiCamera, FiCpu, FiSearch, 
+  FiSettings, FiCheckCircle, FiAlertTriangle, 
+  FiShield, FiDroplet, FiImage 
+} from 'react-icons/fi';
 
 export default function DiseaseDiagnosis() {
   const [imageFile, setImageFile] = useState(null);
@@ -68,7 +73,7 @@ export default function DiseaseDiagnosis() {
   return (
     <div className="bg-white p-6 rounded-2xl shadow-sm border border-gray-100 mb-8">
       <div className="flex items-center gap-3 mb-4">
-        <span className="text-3xl">🩺</span>
+        <FiActivity className="text-3xl text-green-600" />
         <div>
           <h3 className="text-xl font-bold text-gray-900">AI Disease Diagnosis</h3>
           <p className="text-sm text-gray-500">Upload a leaf photo to instantly detect diseases and get treatment advice.</p>
@@ -82,7 +87,10 @@ export default function DiseaseDiagnosis() {
             {previewUrl ? (
               <img src={previewUrl} alt="Crop Preview" className="h-48 w-auto mx-auto rounded-lg shadow-sm object-cover" />
             ) : (
-              <div className="text-gray-400 py-8">No image selected</div>
+              <div className="text-gray-400 py-8 flex flex-col items-center justify-center gap-2">
+                <FiImage className="text-3xl" />
+                <span>No image selected</span>
+              </div>
             )}
             
             {/* The capture="environment" attribute forces mobile phones to open the back camera! */}
@@ -96,38 +104,47 @@ export default function DiseaseDiagnosis() {
             />
             <label 
               htmlFor="cameraInput" 
-              className="mt-4 inline-block bg-white border border-green-600 text-green-700 font-bold py-2 px-6 rounded-lg cursor-pointer hover:bg-green-50 transition-colors"
+              className="mt-4 inline-flex items-center justify-center gap-2 bg-white border border-green-600 text-green-700 font-bold py-2 px-6 rounded-lg cursor-pointer hover:bg-green-50 transition-colors"
             >
-              📸 Take Photo / Upload
+              <FiCamera className="text-lg" /> Take Photo / Upload
             </label>
           </div>
 
           <button 
             onClick={handleDiagnosis} 
             disabled={loading || !imageFile}
-            className={`w-full font-bold py-3 rounded-lg transition-colors shadow-md ${
+            className={`w-full font-bold py-3 rounded-lg transition-colors shadow-md flex items-center justify-center gap-2 ${
               loading || !imageFile ? 'bg-gray-300 text-gray-500 cursor-not-allowed' : 'bg-green-600 hover:bg-green-700 text-white'
             }`}
           >
-            {loading ? '🧠 AI is analyzing...' : 'Run Health Check'}
+            {loading ? (
+              <><FiCpu className="animate-pulse" /> AI is analyzing...</>
+            ) : (
+              'Run Health Check'
+            )}
           </button>
           
-          {error && <div className="p-3 bg-red-50 text-red-700 border border-red-200 rounded-lg text-sm">{error}</div>}
+          {error && (
+            <div className="p-3 bg-red-50 text-red-700 border border-red-200 rounded-lg text-sm flex items-start gap-2">
+              <FiAlertTriangle className="shrink-0 mt-0.5" />
+              <span>{error}</span>
+            </div>
+          )}
         </div>
 
         {/* Right Side: Results */}
         <div className="bg-gray-50 rounded-xl p-6 border border-gray-100 h-full">
           {!result && !loading && (
              <div className="h-full flex flex-col items-center justify-center text-gray-400">
-               <span className="text-4xl mb-2">🔬</span>
+               <FiSearch className="text-4xl mb-2" />
                <p>Diagnosis results will appear here.</p>
              </div>
           )}
 
           {loading && (
-            <div className="h-full flex flex-col items-center justify-center text-green-600 animate-pulse">
-               <span className="text-4xl mb-2">⚙️</span>
-               <p className="font-bold">Scanning leaf patterns...</p>
+            <div className="h-full flex flex-col items-center justify-center text-green-600">
+               <FiSettings className="text-4xl mb-3 animate-spin" />
+               <p className="font-bold animate-pulse">Scanning leaf patterns...</p>
             </div>
           )}
 
@@ -135,13 +152,17 @@ export default function DiseaseDiagnosis() {
             <div className="animate-fade-in-up">
               {result.is_healthy ? (
                 <div className="bg-green-100 text-green-800 p-4 rounded-lg border border-green-200">
-                  <h4 className="font-black text-lg">✅ Plant appears healthy!</h4>
+                  <h4 className="font-black text-lg flex items-center gap-2">
+                    <FiCheckCircle /> Plant appears healthy!
+                  </h4>
                   <p className="text-sm mt-1">Confidence: {Math.round(result.is_healthy_probability * 100)}%</p>
                 </div>
               ) : result.diseases && result.diseases.length > 0 ? (
                 <div className="space-y-4">
                   <div className="bg-red-50 text-red-800 p-4 rounded-lg border border-red-200">
-                    <h4 className="font-black text-lg">⚠️ Disease Detected</h4>
+                    <h4 className="font-black text-lg flex items-center gap-2">
+                      <FiAlertTriangle /> Disease Detected
+                    </h4>
                     <p className="text-xl font-bold mt-1">
                       {result.diseases[0].disease_details.common_names?.[0] || result.diseases[0].name}
                     </p>
@@ -156,12 +177,18 @@ export default function DiseaseDiagnosis() {
                   {result.diseases[0].disease_details.treatment && (
                     <div className="bg-white p-4 rounded-lg border border-gray-200 shadow-sm">
                       <h5 className="font-bold text-gray-900 text-sm uppercase mb-2">Treatment Plan</h5>
-                      <ul className="text-sm text-gray-700 space-y-2">
+                      <ul className="text-sm text-gray-700 space-y-3">
                         {result.diseases[0].disease_details.treatment.biological && (
-                          <li><strong>🌱 Biological:</strong> {result.diseases[0].disease_details.treatment.biological.join(', ')}</li>
+                          <li className="flex items-start gap-2">
+                            <FiShield className="text-green-600 mt-1 shrink-0" />
+                            <span><strong>Biological:</strong> {result.diseases[0].disease_details.treatment.biological.join(', ')}</span>
+                          </li>
                         )}
                         {result.diseases[0].disease_details.treatment.chemical && (
-                          <li><strong>🧪 Chemical:</strong> {result.diseases[0].disease_details.treatment.chemical.join(', ')}</li>
+                          <li className="flex items-start gap-2">
+                            <FiDroplet className="text-blue-500 mt-1 shrink-0" />
+                            <span><strong>Chemical:</strong> {result.diseases[0].disease_details.treatment.chemical.join(', ')}</span>
+                          </li>
                         )}
                       </ul>
                     </div>
@@ -169,7 +196,9 @@ export default function DiseaseDiagnosis() {
                 </div>
               ) : (
                 <div className="bg-orange-50 text-orange-800 p-4 rounded-lg border border-orange-200">
-                  <h4 className="font-bold">⚠️ Issue detected, but no details available.</h4>
+                  <h4 className="font-bold flex items-center gap-2">
+                    <FiAlertTriangle /> Issue detected, but no details available.
+                  </h4>
                   <p className="text-sm mt-1">Please try taking a closer, clearer photo of the affected area.</p>
                 </div>
               )}

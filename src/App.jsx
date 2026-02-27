@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { auth, db, storage } from './firebase'; 
 import { onAuthStateChanged, signOut } from 'firebase/auth'; 
-import { doc, getDoc, collection, addDoc, getDocs, updateDoc, deleteDoc, serverTimestamp, query, orderBy } from 'firebase/firestore'; 
+import { doc, getDoc, collection, addDoc, getDocs, updateDoc, deleteDoc, serverTimestamp, query, orderBy, onSnapshot } from 'firebase/firestore'; 
 import { ref, uploadBytes, getDownloadURL } from 'firebase/storage'; 
 
 // Professional icons from react-icons
@@ -26,7 +26,7 @@ import CropRecommendations from './components/CropRecommendations';
 import SoilTestLabs from './components/SoilTestLabs';
 import GovernmentSchemes from './components/GovernmentSchemes';
 
-// --- Tab Configurations (Now using react-icons) ---
+// --- Tab Configurations ---
 const FARMER_DASHBOARD_TABS = [
   { id: 'listings', label: 'My Listings', icon: <FiBox className="text-lg" /> },
   { id: 'demands', label: 'Buyer Demands', icon: <FiShoppingCart className="text-lg" /> }
@@ -45,6 +45,43 @@ const BUYER_TABS = [
   { id: 'requirements', label: 'My Requirements', icon: <FiClipboard className="text-lg" /> }
 ];
 
+// --- Location Database for Dropdowns ---
+const IndianStatesAndDistricts = {
+  "Andhra Pradesh": ["Anantapur", "Chittoor", "East Godavari", "Guntur", "Krishna", "Kurnool", "Nellore", "Prakasam", "Srikakulam", "Visakhapatnam", "Vizianagaram", "West Godavari", "YSR Kadapa"],
+  "Arunachal Pradesh": ["Anjaw", "Changlang", "Dibang Valley", "East Kameng", "East Siang", "Kamle", "Kra Daadi", "Kurung Kumey", "Lepa Rada", "Lohit", "Longding", "Lower Dibang Valley", "Lower Siang", "Lower Subansiri", "Namsai", "Pakke Kessang", "Papum Pare", "Shi Yomi", "Siang", "Tawang", "Tirap", "Upper Siang", "Upper Subansiri", "West Kameng", "West Siang"],
+  "Assam": ["Baksa", "Barpeta", "Biswanath", "Bongaigaon", "Cachar", "Charaideo", "Chirang", "Darrang", "Dhemaji", "Dhubri", "Dibrugarh", "Dima Hasao", "Goalpara", "Golaghat", "Hailakandi", "Hojai", "Jorhat", "Kamrup Metropolitan", "Kamrup Rural", "Karbi Anglong", "Karimganj", "Kokrajhar", "Lakhimpur", "Majuli", "Morigaon", "Nagaon", "Nalbari", "Sivasagar", "Sonitpur", "South Salmara-Mankachar", "Tinsukia", "Udalguri", "West Karbi Anglong"],
+  "Bihar": ["Araria", "Arwal", "Aurangabad", "Banka", "Begusarai", "Bhagalpur", "Bhojpur", "Buxar", "Darbhanga", "East Champaran", "Gaya", "Gopalganj", "Jamui", "Jehanabad", "Kaimur", "Katihar", "Khagaria", "Kishanganj", "Lakhisarai", "Madhepura", "Madhubani", "Munger", "Muzaffarpur", "Nalanda", "Nawada", "Patna", "Purnia", "Rohtas", "Saharsa", "Samastipur", "Saran", "Sheikhpura", "Sheohar", "Sitamarhi", "Siwan", "Supaul", "Vaishali", "West Champaran"],
+  "Chandigarh": ["Chandigarh"],
+  "Chhattisgarh": ["Balod", "Baloda Bazar", "Balrampur", "Bastar", "Bemetara", "Bijapur", "Bilaspur", "Dantewada", "Dhamtari", "Durg", "Gariaband", "Janjgir-Champa", "Jashpur", "Kabirdham", "Kanker", "Kondagaon", "Korba", "Koriya", "Mahasamund", "Mungeli", "Narayanpur", "Raigarh", "Raipur", "Rajnandgaon", "Sukma", "Surajpur", "Surguja","Uttar Bastar Kanker"],
+  "Delhi": ["Central Delhi", "East Delhi", "New Delhi", "North Delhi", "North East Delhi", "North West Delhi", "Shahdara", "South Delhi", "South East Delhi", "South West Delhi", "West Delhi"],
+  "Goa": ["North Goa", "South Goa"],
+  "Gujarat": ["Ahmedabad", "Amreli", "Anand", "Aravalli", "Banaskantha", "Bharuch", "Bhavnagar", "Botad", "Chhota Udaipur", "Dahod", "Dang", "Devbhoomi Dwarka", "Gandhinagar", "Gir Somnath", "Jamnagar", "Junagadh", "Kheda", "Kutch", "Mahisagar", "Mehsana", "Morbi", "Narmada", "Navsari", "Panchmahal", "Patan", "Porbandar", "Rajkot", "Sabarkantha", "Surat", "Surendranagar", "Tapi", "Vadodara", "Valsad"],
+  "Haryana": ["Ambala", "Bhiwani", "Charkhi Dadri", "Faridabad", "Fatehabad", "Gurugram", "Hisar", "Jhajjar", "Jind", "Kaithal", "Karnal", "Kurukshetra", "Mahendragarh", "Nuh", "Palwal", "Panchkula", "Panipat", "Rewari", "Rohtak", "Sirsa", "Sonipat", "Yamunanagar"],
+  "Himachal Pradesh": ["Bilaspur", "Chamba", "Hamirpur", "Kangra", "Kinnaur", "Kullu", "Lahaul and Spiti", "Mandi", "Shimla", "Sirmaur", "Solan", "Una"],
+  "Jammu and Kashmir": ["Anantnag", "Bandipora", "Baramulla", "Budgam", "Doda", "Ganderbal", "Jammu", "Kathua", "Kishtwar", "Kulgam", "Kupwara", "Poonch", "Pulwama", "Rajouri", "Ramban", "Reasi", "Samba", "Shopian", "Srinagar", "Udhampur"],
+  "Jharkhand": ["Bokaro", "Chatra", "Deoghar", "Dhanbad", "Dumka", "East Singhbhum", "Garhwa", "Giridih", "Godda", "Gumla", "Hazaribagh", "Jamtara", "Khunti", "Koderma", "Latehar", "Lohardaga", "Pakur", "Palamu", "Ramgarh", "Ranchi", "Sahibganj", "Saraikela Kharsawan", "Simdega", "West Singhbhum"],
+  "Karnataka": ["Bagalkot", "Bellary", "Belagavi", "Bengaluru Rural", "Bengaluru Urban", "Bidar","Chamarajanagar", "Chikballapur", "Chikkamagaluru", "Chitradurga", "Dakshina Kannada", "Davangere", "Dharwad", "Gadag", "Hassan", "Haveri","Hubli", "Kalaburagi", "Kodagu", "Kolar", "Koppal", "Mandya", "Mysuru", "Raichur", "Ramanagara", "Shivamogga", "Tumakuru", "Udupi", "Uttara Kannada", "Vijayapura", "Yadgir"],
+  "Kerala": ["Alappuzha", "Ernakulam", "Idukki", "Kannur", "Kasaragod", "Kollam", "Kottayam", "Kozhikode", "Malappuram", "Palakkad", "Pathanamthitta", "Thiruvananthapuram", "Thrissur", "Wayanad"],
+  "Ladakh": ["Kargil", "Leh"],
+  "Madhya Pradesh": ["Agar Malwa", "Alirajpur", "Anuppur", "Ashoknagar", "Balaghat", "Barwani", "Betul", "Bhind", "Bhopal", "Burhanpur", "Chhatarpur", "Chhindwara", "Damoh", "Datia", "Dewas", "Dhar", "Dindori", "Guna", "Gwalior", "Harda", "Hoshangabad", "Indore", "Jabalpur", "Jhabua", "Katni", "Khandwa", "Khargone", "Mandla", "Mandsaur", "Morena", "Narsinghpur", "Neemuch", "Panna", "Raisen", "Rajgarh", "Ratlam", "Rewa", "Sagar", "Satna", "Sehore", "Seoni"],
+  "Maharashtra": ["Ahmednagar", "Akola", "Amravati", "Aurangabad", "Beed", "Bhandara", "Buldhana", "Chandrapur", "Dhule", "Gadchiroli", "Gondia", "Hingoli", "Jalgaon", "Jalna", "Kolhapur", "Latur", "Mumbai City", "Mumbai Suburban", "Nagpur", "Nanded", "Nandurbar", "Nashik", "Osmanabad", "Palghar", "Parbhani", "Pune", "Raigad", "Ratnagiri", "Sangli", "Satara", "Sindhudurg", "Solapur", "Thane", "Wardha", "Washim", "Yavatmal"],
+  "Manipur": ["Bishnupur", "Chandel", "Churachandpur", "Imphal East", "Imphal West", "Jiribam", "Kakching", "Kamjong", "Kangpokpi", "Noney", "Pherzawl", "Senapati", "Tamenglong", "Tengnoupal", "Thoubal", "Ukhrul"],
+  "Meghalaya": ["East Garo Hills", "East Jaintia Hills", "East Khasi Hills", "North Garo Hills", "Ri Bhoi", "South Garo Hills", "South West Garo Hills", "South West Khasi Hills", "West Garo Hills", "West Jaintia Hills", "West Khasi Hills"],
+  "Mizoram": ["Aizawl", "Champhai", "Kolasib", "Lawngtlai", "Lunglei", "Mamit", "Saiha", "Serchhip"],
+  "Nagaland": ["Dimapur", "Kiphire", "Kohima", "Longleng", "Mokokchung", "Mon", "Peren", "Phek", "Tuensang", "Wokha", "Zunheboto"],
+  "Odisha": ["Angul", "Balangir", "Balasore", "Bargarh", "Bhadrak", "Boudh", "Cuttack", "Deogarh", "Dhenkanal", "Gajapati", "Ganjam", "Jagatsinghpur", "Jajpur", "Jharsuguda", "Kalahandi", "Kandhamal", "Kendrapara", "Kendujhar", "Khordha", "Koraput", "Malkangiri", "Mayurbhanj", "Nabarangpur", "Nayagarh", "Nuapada", "Puri", "Rayagada", "Sambalpur", "Subarnapur", "Sundargarh"],
+  "Puducherry": ["Karaikal", "Mahe", "Puducherry", "Yanam"],
+  "Punjab": ["Amritsar", "Barnala", "Bathinda", "Faridkot", "Fatehgarh Sahib", "Fazilka", "Ferozepur", "Gurdaspur", "Hoshiarpur", "Jalandhar", "Kapurthala", "Ludhiana", "Mansa", "Moga", "Muktsar", "Nawanshahr", "Pathankot", "Patiala", "Rupnagar", "Sangrur", "Shaheed Bhagat Singh Nagar", "Tarn Taran"],
+  "Rajasthan": ["Ajmer", "Alwar", "Banswara", "Baran", "Barmer", "Bharatpur", "Bhilwara", "Bikaner", "Bundi", "Chittorgarh", "Churu", "Dausa", "Dholpur", "Dungarpur", "Hanumangarh", "Jaipur", "Jaisalmer", "Jalore", "Jhalawar", "Jhunjhunu", "Jodhpur", "Karauli", "Kota", "Nagaur", "Pali", "Pratapgarh", "Rajsamand", "Sawai Madhopur", "Sikar", "Sirohi", "Sri Ganganagar", "Tonk", "Udaipur"],
+  "Sikkim": ["East Sikkim", "North Sikkim", "South Sikkim", "West Sikkim"],
+  "Tamil Nadu": ["Ariyalur", "Chengalpattu", "Chennai", "Coimbatore", "Cuddalore", "Dharmapuri", "Dindigul", "Erode", "Kallakurichi", "Kanchipuram", "Kanyakumari", "Karur", "Krishnagiri", "Madurai", "Mayiladuthurai", "Nagapattinam", "Namakkal", "Nilgiris", "Perambalur", "Pudukkottai", "Ramanathapuram", "Ranipet", "Salem", "Sivaganga", "Tenkasi", "Thanjavur", "Theni", "Thoothukudi", "Tiruchirappalli", "Tirunelveli", "Tirupathur", "Tiruppur", "Tiruvallur", "Tiruvannamalai", "Tiruvarur", "Vellore", "Viluppuram", "Virudhunagar"],
+  "Telangana": ["Adilabad", "Bhadradri Kothagudem", "Hyderabad", "Jagtial", "Jangaon", "Jayashankar Bhupalpally", "Jogulamba Gadwal", "Kamareddy", "Karimnagar", "Khammam", "Komaram Bheem Asifabad", "Mahabubabad", "Mahabubnagar", "Mancherial", "Medak", "Medchal-Malkajgiri", "Mulugu", "Nagarkurnool", "Nalgonda", "Narayanpet", "Nirmal", "Nizamabad", "Peddapalli", "Rajanna Sircilla", "Rangareddy", "Sangareddy", "Siddipet", "Suryapet", "Vikarabad", "Wanaparthy", "Warangal Rural", "Warangal Urban", "Yadadri Bhuvanagiri"],
+  "Tripura": ["Dhalai", "Gomati", "Khowai", "North Tripura", "Sepahijala", "South Tripura", "Unakoti", "West Tripura"],
+  "Uttar Pradesh": ["Agra", "Aligarh", "Allahabad", "Ambedkar Nagar", "Amethi", "Amroha", "Auraiya", "Azamgarh", "Baghpat", "Bahraich", "Ballia", "Balrampur", "Banda", "Barabanki", "Bareilly", "Basti", "Bhadohi", "Bijnor", "Budaun", "Bulandshahr", "Chandauli", "Chitrakoot", "Deoria", "Etah", "Etawah", "Faizabad", "Farrukhabad", "Fatehpur", "Firozabad", "Gautam Buddha Nagar", "Ghaziabad", "Ghazipur", "Gonda", "Gorakhpur", "Hamirpur", "Hapur", "Hardoi", "Hathras", "Jalaun", "Jaunpur", "Jhansi", "Kannauj", "Kanpur Dehat", "Kanpur Nagar", "Kasganj", "Kaushambi", "Kheri", "Kushinagar", "Lalitpur", "Lucknow", "Maharajganj", "Mahoba", "Mainpuri", "Mathura", "Mau", "Meerut", "Mirzapur", "Moradabad", "Muzaffarnagar", "Pilibhit", "Pratapgarh", "Raebareli", "Rampur", "Saharanpur", "Sambhal", "Sant Kabir Nagar", "Shahjahanpur", "Shamli", "Shravasti", "Siddharthnagar", "Sitapur", "Sonbhadra", "Sultanpur", "Unnao", "Varanasi"],
+  "Uttarakhand": ["Almora", "Bageshwar", "Chamoli", "Champawat", "Dehradun", "Haridwar", "Nainital", "Pauri Garhwal", "Pithoragarh", "Rudraprayag", "Tehri Garhwal", "Udham Singh Nagar", "Uttarkashi"],
+  "West Bengal": ["Alipurduar", "Bankura", "Birbhum", "Cooch Behar", "Dakshin Dinajpur", "Darjeeling", "Hooghly", "Howrah", "Jalpaiguri", "Kalimpong", "Kolkata", "Malda", "Murshidabad", "Nadia", "North 24 Parganas", "Paschim Bardhaman", "Paschim Medinipur", "Purba Bardhaman", "Purba Medinipur", "Purulia", "South 24 Parganas", "Uttar Dinajpur"]
+};
+
 export default function App() {
   const [currentUser, setCurrentUser] = useState(null);
   const [userRole, setUserRole] = useState(null); 
@@ -62,10 +99,12 @@ export default function App() {
   const [requirementToEdit, setRequirementToEdit] = useState(null);
 
   // Navigation States
-  const [currentView, setCurrentView] = useState('dashboard'); // 'dashboard' or 'explore'
+  const [currentView, setCurrentView] = useState('dashboard');
   const [activeFarmerTab, setActiveFarmerTab] = useState('listings');
   const [activeExploreTab, setActiveExploreTab] = useState('weather');
   const [activeBuyerTab, setActiveBuyerTab] = useState('marketplace');
+
+  const [targetLocation, setTargetLocation] = useState({ state: 'Maharashtra', district: 'Pune' });
 
   useEffect(() => {
     const unsubscribe = onAuthStateChanged(auth, async (user) => {
@@ -74,8 +113,12 @@ export default function App() {
         try {
           const userDoc = await getDoc(doc(db, 'users', user.uid));
           if (userDoc.exists()) {
-            setUserRole(userDoc.data().role);
-            setUserProfile(userDoc.data()); 
+            const data = userDoc.data();
+            setUserRole(data.role);
+            setUserProfile(data); 
+            if(data.state && data.district) {
+               setTargetLocation({ state: data.state, district: data.district });
+            }
           } else {
             setUserRole('buyer'); 
           }
@@ -95,52 +138,79 @@ export default function App() {
   }, []);
 
   useEffect(() => {
-    const fetchData = async () => {
-      try {
-        const produceQ = query(collection(db, 'produces'), orderBy('createdAt', 'desc'));
-        const produceSnap = await getDocs(produceQ);
-        setProduces(produceSnap.docs.map(doc => ({ id: doc.id, ...doc.data() })));
+    if (!currentUser) return;
 
-        const reqQ = query(collection(db, 'requirements'), orderBy('createdAt', 'desc'));
-        const reqSnap = await getDocs(reqQ);
-        setRequirements(reqSnap.docs.map(doc => ({ id: doc.id, ...doc.data() })));
-      } catch (error) {
-        console.error("Error fetching data:", error);
-      }
+    const produceQ = query(collection(db, 'produces'), orderBy('createdAt', 'desc'));
+    const unsubscribeProduces = onSnapshot(produceQ, (snapshot) => {
+      setProduces(snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() })));
+    });
+
+    const reqQ = query(collection(db, 'requirements'), orderBy('createdAt', 'desc'));
+    const unsubscribeReqs = onSnapshot(reqQ, (snapshot) => {
+      setRequirements(snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() })));
+    });
+
+    return () => {
+      unsubscribeProduces();
+      unsubscribeReqs();
     };
-    if (currentUser) fetchData();
   }, [currentUser]);
 
   const handleLogout = () => signOut(auth);
 
-  // --- PRODUCE LOGIC ---
+  // --- THE FINAL FIX: CORRECTLY ATTACHING FARMER NAME FROM PROFILE ---
   const handleSaveProduce = async (produceData) => {
     try {
-      let finalImageUrl = produceData.imageUrl; 
-      if (produceData.imageFile) {
-        const imageRef = ref(storage, `produces/${Date.now()}_${produceData.imageFile.name}`);
-        const uploadResult = await uploadBytes(imageRef, produceData.imageFile);
-        finalImageUrl = await getDownloadURL(uploadResult.ref);
+      let uploadedUrls = [];
+      
+      if (produceData.imageFiles && produceData.imageFiles.length > 0) {
+        const uploadPromises = produceData.imageFiles.map(async (file, index) => {
+          const imageRef = ref(storage, `produces/${Date.now()}_${index}_${file.name}`);
+          const uploadResult = await uploadBytes(imageRef, file);
+          return await getDownloadURL(uploadResult.ref);
+        });
+        
+        uploadedUrls = await Promise.all(uploadPromises);
       }
-      delete produceData.imageFile;
+
+      delete produceData.imageFiles;
+      delete produceData.imageUrl; 
+
+      // SAFETY CHECK: Ensure we use the real name from the logged-in profile
+      const realFarmerName = userProfile?.fullName || currentUser.email;
 
       if (produceToEdit) {
-        const produceRef = doc(db, 'produces', produceToEdit.id);
-        await updateDoc(produceRef, { ...produceData, imageUrl: finalImageUrl });
-        setProduces(produces.map(p => p.id === produceToEdit.id ? { ...p, ...produceData, imageUrl: finalImageUrl } : p));
+        const finalUrls = uploadedUrls.length > 0 ? uploadedUrls : (produceToEdit.imageUrls || [produceToEdit.imageUrl]);
+        const mainImageUrl = finalUrls && finalUrls.length > 0 ? finalUrls[0] : '';
+        
+        await updateDoc(doc(db, 'produces', produceToEdit.id), { 
+          ...produceData, 
+          imageUrls: finalUrls,
+          imageUrl: mainImageUrl,
+          farmerName: realFarmerName // Update to real name if it was wrong
+        });
       } else {
+        const mainImageUrl = uploadedUrls.length > 0 ? uploadedUrls[0] : '';
         const newProduce = {
-          ...produceData, imageUrl: finalImageUrl, farmerId: currentUser.uid, farmerName: userProfile?.fullName || currentUser.email, createdAt: serverTimestamp()
+          ...produceData, 
+          imageUrls: uploadedUrls, 
+          imageUrl: mainImageUrl,  
+          farmerId: currentUser.uid, 
+          farmerName: realFarmerName, // Save actual profile name here
+          createdAt: serverTimestamp(),
+          status: 'active'
         };
-        const docRef = await addDoc(collection(db, 'produces'), newProduce);
-        setProduces([{ ...newProduce, id: docRef.id }, ...produces]); 
+        await addDoc(collection(db, 'produces'), newProduce);
       }
+      
       setIsAddModalOpen(false);
       setProduceToEdit(null);
       setActiveFarmerTab('listings'); 
-      setCurrentView('dashboard'); // Return to dashboard if they were in explore view
+      setCurrentView('dashboard'); 
     } catch (error) {
+      console.error("Upload Error:", error);
       alert("Failed to publish listing.");
+      throw error;
     }
   };
 
@@ -153,8 +223,6 @@ export default function App() {
   const handleDeleteProduce = async (id) => {
     try {
       await deleteDoc(doc(db, 'produces', id));
-      setProduces(produces.filter(p => p.id !== id));
-      setSelectedProduce(null);
     } catch (error) {
       console.error("Error deleting produce: ", error);
     }
@@ -162,13 +230,10 @@ export default function App() {
 
   const handleContactAction = () => { alert("Request sent successfully! The user will be notified."); };
 
-  // --- REQUIREMENT LOGIC ---
   const handleSaveRequirement = async (reqData) => { 
     try {
       if (requirementToEdit) {
-        const reqRef = doc(db, 'requirements', requirementToEdit.id);
-        await updateDoc(reqRef, reqData);
-        setRequirements(requirements.map(r => r.id === requirementToEdit.id ? { ...r, ...reqData } : r));
+        await updateDoc(doc(db, 'requirements', requirementToEdit.id), reqData);
       } else {
         const newReq = {
           ...reqData,
@@ -178,8 +243,7 @@ export default function App() {
           buyerPhone: userProfile?.phoneNumber || 'Not provided', 
           createdAt: serverTimestamp()
         };
-        const docRef = await addDoc(collection(db, 'requirements'), newReq);
-        setRequirements([{ ...newReq, id: docRef.id }, ...requirements]);
+        await addDoc(collection(db, 'requirements'), newReq);
       }
       setIsReqModalOpen(false);
       setRequirementToEdit(null);
@@ -192,7 +256,6 @@ export default function App() {
   const handleDeleteRequirement = async (id) => {
     try {
       await deleteDoc(doc(db, 'requirements', id));
-      setRequirements(requirements.filter(r => r.id !== id));
     } catch (error) {
       console.error("Error deleting requirement:", error);
     }
@@ -303,7 +366,6 @@ export default function App() {
         {userRole === 'farmer' && (
           <div>
             
-            {/* Header Area */}
             <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center mb-8 gap-4">
               <div>
                 <h1 className="text-3xl font-extrabold text-gray-900">
@@ -338,7 +400,6 @@ export default function App() {
               <div className="animate-fade-in-up">
                 <AnalyticsPanel role="farmer" stats={{ totalSalesValue: 0, activeListings: myProduces.length, dealsCompleted: 0 }} history={[]} />
 
-                {/* Farmer Tabs Navigation */}
                 <div className="flex overflow-x-auto gap-2 mb-6 pb-2 border-b border-gray-200 scrollbar-hide mt-8">
                   {FARMER_DASHBOARD_TABS.map(tab => (
                     <button
@@ -355,7 +416,6 @@ export default function App() {
                   ))}
                 </div>
 
-                {/* Tab: Listings */}
                 {activeFarmerTab === 'listings' && (
                   <div className="animate-fade-in-up">
                     {myProduces.length === 0 ? (
@@ -373,7 +433,6 @@ export default function App() {
                   </div>
                 )}
 
-                {/* Tab: Demands */}
                 {activeFarmerTab === 'demands' && (
                   <div className="animate-fade-in-up">
                      {requirements.length === 0 ? (
@@ -447,7 +506,41 @@ export default function App() {
             {currentView === 'explore' && (
               <div className="animate-fade-in-up">
                 
-                {/* Explore Tools Navigation */}
+                <div className="bg-white p-4 rounded-xl border border-indigo-200 shadow-sm mb-6 flex flex-col sm:flex-row gap-4 items-center bg-gradient-to-r from-indigo-50 to-white">
+                  <div className="flex items-center gap-2 text-indigo-800 font-bold min-w-max">
+                    <FiMapPin className="text-xl" /> Target Region:
+                  </div>
+                  
+                  <select 
+                    value={targetLocation.state} 
+                    onChange={(e) => {
+                      const newState = e.target.value;
+                      setTargetLocation({ 
+                        state: newState, 
+                        district: IndianStatesAndDistricts[newState]?.[0] || '' 
+                      });
+                    }}
+                    className="flex-1 border border-gray-200 bg-white shadow-inner rounded-lg p-2.5 focus:ring-2 focus:ring-indigo-500 outline-none cursor-pointer text-gray-800 font-medium"
+                  >
+                    <option value="">Select State...</option>
+                    {Object.keys(IndianStatesAndDistricts).sort().map(state => (
+                      <option key={state} value={state}>{state}</option>
+                    ))}
+                  </select>
+
+                  <select 
+                    value={targetLocation.district} 
+                    onChange={(e) => setTargetLocation({...targetLocation, district: e.target.value})}
+                    className="flex-1 border border-gray-200 bg-white shadow-inner rounded-lg p-2.5 focus:ring-2 focus:ring-indigo-500 outline-none cursor-pointer text-gray-800 font-medium disabled:opacity-50 disabled:bg-gray-100"
+                    disabled={!targetLocation.state}
+                  >
+                    <option value="">Select District...</option>
+                    {targetLocation.state && IndianStatesAndDistricts[targetLocation.state].map(district => (
+                      <option key={district} value={district}>{district}</option>
+                    ))}
+                  </select>
+                </div>
+
                 <div className="flex overflow-x-auto gap-2 mb-6 pb-2 border-b border-gray-200 scrollbar-hide">
                   {EXPLORE_TABS.map(tab => (
                     <button
@@ -464,13 +557,12 @@ export default function App() {
                   ))}
                 </div>
 
-                {/* Explore Content */}
                 <div className="animate-fade-in-up">
-                  {activeExploreTab === 'weather' && <WeatherForecast />}
+                  {activeExploreTab === 'weather' && <WeatherForecast state={targetLocation.state} district={targetLocation.district} />}
                   {activeExploreTab === 'diagnosis' && <DiseaseDiagnosis />}
-                  {activeExploreTab === 'crops' && <CropRecommendations />}
-                  {activeExploreTab === 'soil' && <SoilTestLabs />}
-                  {activeExploreTab === 'schemes' && <GovernmentSchemes userState={userProfile?.state || "Maharashtra"} />}
+                  {activeExploreTab === 'crops' && <CropRecommendations state={targetLocation.state} district={targetLocation.district} />}
+                  {activeExploreTab === 'soil' && <SoilTestLabs state={targetLocation.state} district={targetLocation.district} />}
+                  {activeExploreTab === 'schemes' && <GovernmentSchemes userState={targetLocation.state} />}
                 </div>
 
               </div>
