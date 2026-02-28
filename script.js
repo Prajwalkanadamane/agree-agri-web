@@ -590,7 +590,7 @@ function populateStates() {
         document.getElementById('recState'),
         document.getElementById('soilTestState'),
         document.getElementById('coldStorageState'),
-        
+        document.getElementById('schemeStateFilter') // <-- THIS WAS MISSING!
     ];
     
     stateDropdowns.forEach(dropdown => {
@@ -3809,6 +3809,7 @@ async function fetchCropRecommendations() {
     await new Promise(r => setTimeout(r, 1500));
 
     // 3. The Agricultural Database (Ideal Conditions)
+  // 3. The Agricultural Database (Expanded Ideal Conditions)
     const cropRequirements = {
         "Rice": { soil: ["Clay", "Loamy"], ph: ["Acidic (5.5 - 6.5)", "Neutral (6.5 - 7.5)"], N: "High", P: "Medium", K: "Medium" },
         "Wheat": { soil: ["Loamy", "Clay"], ph: ["Neutral (6.5 - 7.5)"], N: "High", P: "Medium", K: "Medium" },
@@ -3821,9 +3822,18 @@ async function fetchCropRecommendations() {
         "Tea": { soil: ["Loamy"], ph: ["Very Acidic (< 5.5)", "Acidic (5.5 - 6.5)"], N: "High", P: "Medium", K: "Medium" },
         "Banana": { soil: ["Loamy", "Clay"], ph: ["Acidic (5.5 - 6.5)", "Neutral (6.5 - 7.5)"], N: "High", P: "Medium", K: "High" },
         "Turmeric": { soil: ["Loamy"], ph: ["Acidic (5.5 - 6.5)", "Neutral (6.5 - 7.5)"], N: "Medium", P: "Medium", K: "High" },
-        "Soybean": { soil: ["Loamy", "Clay"], ph: ["Neutral (6.5 - 7.5)"], N: "Low", P: "Medium", K: "Medium" }
+        "Soybean": { soil: ["Loamy", "Clay"], ph: ["Neutral (6.5 - 7.5)"], N: "Low", P: "Medium", K: "Medium" },
+        
+        // --- NEWLY ADDED CROPS ---
+        "Coffee": { soil: ["Loamy"], ph: ["Acidic (5.5 - 6.5)"], N: "Medium", P: "Medium", K: "High" },
+        "Rubber": { soil: ["Clay", "Loamy"], ph: ["Very Acidic (< 5.5)", "Acidic (5.5 - 6.5)"], N: "Medium", P: "Low", K: "Medium" },
+        "Coconut": { soil: ["Sandy", "Loamy"], ph: ["Neutral (6.5 - 7.5)", "Alkaline (> 7.5)"], N: "Medium", P: "High", K: "High" },
+        "Mustard": { soil: ["Sandy", "Loamy"], ph: ["Neutral (6.5 - 7.5)"], N: "Medium", P: "Medium", K: "Low" },
+        "Jute": { soil: ["Clay", "Loamy"], ph: ["Acidic (5.5 - 6.5)", "Neutral (6.5 - 7.5)"], N: "High", P: "Medium", K: "Medium" },
+        "Ginger": { soil: ["Loamy"], ph: ["Acidic (5.5 - 6.5)", "Neutral (6.5 - 7.5)"], N: "Medium", P: "Medium", K: "High" },
+        "Black Pepper": { soil: ["Loamy", "Clay"], ph: ["Acidic (5.5 - 6.5)"], N: "Medium", P: "Medium", K: "High" },
+        "Sunflower": { soil: ["Sandy", "Loamy"], ph: ["Neutral (6.5 - 7.5)"], N: "Medium", P: "Medium", K: "Medium" }
     };
-
     // Helper to score levels mathematically
     const getLevelScore = (val) => {
         if (val === 'Low') return 1;
@@ -3945,6 +3955,10 @@ async function fetchCropRecommendations() {
 }
 // --- Government Schemes Logic ---
 
+// ==========================================================================
+// GOVERNMENT SCHEMES, VIGILANCE & TRACKING LOGIC
+// ==========================================================================
+
 function showSchemesTab(tabName, tabElement) {
     document.querySelectorAll('#schemes .market-tab').forEach(tab => tab.classList.remove('active'));
     document.querySelectorAll('#schemes .marketplace-tabs .tab-btn').forEach(btn => btn.classList.remove('active'));
@@ -3954,17 +3968,6 @@ function showSchemesTab(tabName, tabElement) {
     if (tab) tab.classList.add('active');
     
     if (tabElement) tabElement.classList.add('active');
-}
-
-// --- Government Schemes Logic ---
-
-function showSchemesTab(tabName, tabElement) {
-    document.querySelectorAll('#schemes .market-tab').forEach(tab => tab.classList.remove('active'));
-    document.querySelectorAll('#schemes .marketplace-tabs .tab-btn').forEach(btn => btn.classList.remove('active'));
-
-    const tabId = `schemes${tabName.charAt(0).toUpperCase() + tabName.slice(1)}Tab`;
-    document.getElementById(tabId).classList.add('active');
-    tabElement.classList.add('active');
 }
 
 function loadSchemesPage() {
@@ -4022,6 +4025,11 @@ async function fetchLiveGovtUpdates() {
 
     updatesContainer.innerHTML = '';
     
+    if (applicableUpdates.length === 0) {
+        updatesContainer.innerHTML = '<p style="text-align:center;">No official updates at this time.</p>';
+        return;
+    }
+
     applicableUpdates.forEach(update => {
         const safeState = (update.state && String(update.state) !== 'undefined') ? update.state : 'All';
         const stateTag = safeState === 'All' ? '🇮🇳 Central Update' : `📍 ${safeState} Update`;
@@ -4041,7 +4049,7 @@ async function fetchLiveGovtUpdates() {
     });
 }
 
-// 2. Fetch Schemes (Live Cloud API)
+// 2. Fetch Schemes (Live Cloud API + Smart Eligibility Filter)
 async function fetchLiveGovtSchemes() {
     const schemesContainer = document.getElementById('govtSchemesList');
     if (!schemesContainer) return;
@@ -4049,9 +4057,13 @@ async function fetchLiveGovtSchemes() {
     schemesContainer.innerHTML = `<div style="text-align:center; padding: 2rem;">⏳ Fetching live schemes from Cloud Server...</div>`;
 
     const stateDropdown = document.getElementById('schemeStateFilter');
-    const targetState = stateDropdown ? stateDropdown.value : 'All';
+    const landDropdown = document.getElementById('schemeLandFilter');
+    const categoryDropdown = document.getElementById('schemeCategoryFilter');
 
-    // REMOVED COMMIT HASH - Now it's dynamic!
+    const targetState = stateDropdown ? stateDropdown.value : 'All';
+    const targetLand = landDropdown ? landDropdown.value : 'all';
+    const targetCategory = categoryDropdown ? categoryDropdown.value : 'all';
+
     const apiUrl = 'https://gist.githubusercontent.com/pranavpatil1310/eaf11cf67d3fb9e309787a2ceb868e73/raw/schemes.json';
     const cacheBusterUrl = apiUrl + '?time=' + new Date().getTime();
 
@@ -4060,17 +4072,48 @@ async function fetchLiveGovtSchemes() {
         if (!response.ok) throw new Error("Network response was not ok");
         const allCloudSchemes = await response.json();
 
-        const applicableSchemes = allCloudSchemes.filter(scheme =>
-            scheme.level === 'Central' || scheme.state === targetState
-        );
+        // --- SMART SORTING ALGORITHM ---
+        const applicableSchemes = allCloudSchemes.filter(scheme => {
+            const stateMatch = (scheme.level === 'Central' || scheme.state === 'All' || scheme.state === targetState);
+            let landMatch = true;
+            let categoryMatch = true;
+            const combinedText = ((scheme.desc || "") + " " + (scheme.title || "")).toLowerCase();
+
+            if (targetLand === 'large') {
+                if (combinedText.includes('small') || combinedText.includes('marginal') || combinedText.includes('landless')) { landMatch = false; }
+            }
+            if (targetLand === 'marginal' || targetLand === 'small') {
+                if (combinedText.includes('large scale') || combinedText.includes('tractor')) { landMatch = false; }
+            }
+            if (targetCategory === 'all' || targetCategory === 'women') {
+                if (combinedText.includes('sc/st only') || combinedText.includes('scheduled caste')) { categoryMatch = false; }
+            }
+            return stateMatch && landMatch && categoryMatch;
+        });
 
         renderSchemeCards(applicableSchemes, targetState, true);
 
     } catch (error) {
         console.error("Cloud Fetch Failed:", error);
-        const fallbackSchemes = mockGovtSchemes.filter(scheme =>
-            scheme.level === 'Central' || scheme.state === targetState
-        );
+        
+        // Use Offline mock database if Gist fails, applying the SAME smart filter!
+        const fallbackSchemes = mockGovtSchemes.filter(scheme => {
+            const stateMatch = (scheme.level === 'Central' || scheme.state === 'All' || scheme.state === targetState);
+            let landMatch = true;
+            let categoryMatch = true;
+            const combinedText = ((scheme.desc || "") + " " + (scheme.title || "")).toLowerCase();
+
+            if (targetLand === 'large') {
+                if (combinedText.includes('small') || combinedText.includes('marginal') || combinedText.includes('landless')) { landMatch = false; }
+            }
+            if (targetLand === 'marginal' || targetLand === 'small') {
+                if (combinedText.includes('large scale') || combinedText.includes('tractor')) { landMatch = false; }
+            }
+            if (targetCategory === 'all' || targetCategory === 'women') {
+                if (combinedText.includes('sc/st only') || combinedText.includes('scheduled caste')) { categoryMatch = false; }
+            }
+            return stateMatch && landMatch && categoryMatch;
+        });
         renderSchemeCards(fallbackSchemes, targetState, false);
     }
 }
@@ -4091,7 +4134,7 @@ function renderSchemeCards(schemesArray, state, isLive) {
     `;
 
     if (schemesArray.length === 0) {
-        schemesContainer.innerHTML += `<p>No specific state schemes found. Viewing Central schemes is recommended.</p>`;
+        schemesContainer.innerHTML += `<p style="text-align:center; padding: 2rem; background: #f8f9fa; border-radius: 8px;">No specific schemes match your selected filters. Try changing your Land or Category settings.</p>`;
         return;
     }
 
@@ -4143,181 +4186,8 @@ function handlePostGovtUpdate(event) {
     
     loadSchemesPage();
 }
-// --- Government Schemes & Vigilance Logic ---
 
-function loadSchemesPage() {
-    const adminContainer = document.getElementById('adminUpdateContainer');
-    if (currentUser && currentUser.role === 'admin') {
-        adminContainer.style.display = 'block';
-    } else {
-        adminContainer.style.display = 'none';
-    }
-
-    const stateDropdown = document.getElementById('schemeStateFilter');
-    if (stateDropdown && currentUser && currentUser.state && currentUser.state !== 'All') {
-        for (let i = 0; i < stateDropdown.options.length; i++) {
-            if (stateDropdown.options[i].value === currentUser.state) {
-                stateDropdown.selectedIndex = i; break;
-            }
-        }
-    }
-
-    fetchLiveGovtSchemes(); 
-    fetchLiveGovtUpdates(); 
-}
-
-function showSchemesTab(tabName, btnElement) {
-    const tabs = document.querySelectorAll('#schemes .market-tab');
-    tabs.forEach(tab => tab.classList.remove('active'));
-    
-    const btns = document.querySelectorAll('#schemes .tab-btn');
-    btns.forEach(btn => btn.classList.remove('active'));
-    
-    const selectedTab = document.getElementById('schemes' + tabName.charAt(0).toUpperCase() + tabName.slice(1) + 'Tab');
-    if (selectedTab) {
-        selectedTab.classList.add('active');
-    }
-    if (btnElement) {
-        btnElement.classList.add('active');
-    }
-}
-
-function handlePostGovtUpdate(event) {
-    event.preventDefault();
-    if (!currentUser || currentUser.role !== 'admin') return;
-
-    const targetStateDropdown = document.getElementById('updateState');
-    const targetState = targetStateDropdown ? targetStateDropdown.value : 'All';
-    
-    let updates = JSON.parse(localStorage.getItem(GOVT_UPDATES_KEY)) || [];
-    updates.push({
-        id: Date.now(),
-        state: targetState,
-        title: document.getElementById('updateTitle').value,
-        message: document.getElementById('updateMessage').value,
-        isUrgent: document.getElementById('updateUrgent').checked,
-        date: new Date().toLocaleDateString('en-IN')
-    });
-
-    localStorage.setItem(GOVT_UPDATES_KEY, JSON.stringify(updates));
-    showNotification('updateNotification', 'Official update posted successfully!', 'success');
-    document.getElementById('govtUpdateForm').reset();
-    loadSchemesPage();
-}
-
-async function fetchLiveGovtSchemes() {
-    const schemesContainer = document.getElementById('govtSchemesList');
-    if(!schemesContainer) return; 
-    
-    schemesContainer.innerHTML = `<div style="text-align:center; padding: 2rem;">⏳ Fetching live schemes from Cloud Server...</div>`;
-    
-    const stateDropdown = document.getElementById('schemeStateFilter');
-    const targetState = stateDropdown ? stateDropdown.value : 'All';
-
-    // Cloud Database Connection
-    const apiUrl = 'https://gist.githubusercontent.com/pranavpatil1310/eaf11cf67d3fb9e309787a2ceb868e73/raw/schemes.json';
-    const cacheBusterUrl = apiUrl + '?time=' + new Date().getTime();
-
-    try {
-        const response = await fetch(cacheBusterUrl);
-        if (!response.ok) throw new Error("Network error");
-        const allCloudSchemes = await response.json();
-
-        const applicableSchemes = allCloudSchemes.filter(scheme => 
-            scheme.level === 'Central' || scheme.state === targetState
-        );
-        renderSchemeCards(applicableSchemes, targetState, true); 
-    } catch (error) {
-        console.error("Cloud Fetch Failed:", error);
-        const fallbackSchemes = mockGovtSchemes.filter(scheme => 
-            scheme.level === 'Central' || scheme.state === targetState
-        );
-        renderSchemeCards(fallbackSchemes, targetState, false); 
-    }
-}
-
-function renderSchemeCards(schemesArray, state, isLive) {
-    const schemesContainer = document.getElementById('govtSchemesList');
-    schemesContainer.innerHTML = ''; 
-
-    if(schemesArray.length === 0) {
-        schemesContainer.innerHTML = `<p style="text-align:center;">No specific state schemes found. Viewing Central schemes is recommended.</p>`;
-        return;
-    }
-
-    schemesArray.forEach(scheme => {
-        const badgeColor = scheme.level === 'Central' ? '#4a90e2' : '#e67e22'; 
-        
-        const docsHtml = scheme.documents ? `<div style="margin-top: 10px; background: #fff3cd; padding: 8px; border-left: 3px solid #ffc107; font-size: 0.85rem; border-radius: 4px;"><strong>📋 Required Documents:</strong><br> ${scheme.documents}</div>` : '';
-        const linkHtml = scheme.link ? `<a href="${scheme.link}" target="_blank" style="display: inline-block; margin-top: 12px; background: #2d5016; color: white; padding: 6px 12px; border-radius: 6px; text-decoration: none; font-size: 0.9rem; font-weight: bold;">🌐 Apply Directly Online</a>` : '';
-
-        schemesContainer.innerHTML += `
-            <div class="listing-card" style="border-left: 5px solid ${badgeColor}; display: block; text-align: left;">
-                <div style="display:flex; justify-content:space-between; align-items:flex-start;">
-                    <h4 style="margin:0;">${scheme.title}</h4>
-                    <span style="background:${badgeColor}20; color:${badgeColor}; padding:3px 8px; border-radius:8px; font-weight:bold; font-size:0.8rem;">${scheme.level || 'State'} Scheme</span>
-                </div>
-                <p style="margin-top: 1rem;">${scheme.desc || scheme.description}</p>
-                <div style="text-align:left; color:#2d5016; font-size: 1.1rem; font-weight: bold; margin-top: 5px;">${scheme.amount || ''}</div>
-                ${docsHtml}
-                ${linkHtml}
-            </div>
-        `;
-    });
-}
-
-async function fetchLiveGovtUpdates() {
-    const updatesContainer = document.getElementById('govtUpdatesList');
-    if (!updatesContainer) return;
-    updatesContainer.innerHTML = `<div style="text-align:center; padding: 2rem;">⏳ Fetching live official updates...</div>`;
-
-    const apiUrl = 'https://gist.githubusercontent.com/pranavpatil1310/2fbacd0bd0b10586c6728411972c1b47/raw/updates.json';
-    const cacheBusterUrl = apiUrl + '?time=' + new Date().getTime();
-
-    let allUpdates = [];
-    try {
-        const response = await fetch(cacheBusterUrl);
-        if (!response.ok) throw new Error("Network error");
-        allUpdates = await response.json();
-    } catch (error) {
-        allUpdates = mockGovtUpdates; 
-    }
-
-    const localAdminUpdates = JSON.parse(localStorage.getItem(GOVT_UPDATES_KEY)) || [];
-    allUpdates = [...localAdminUpdates, ...allUpdates];
-
-    const userState = (currentUser && currentUser.state) ? currentUser.state : 'All';
-    const applicableUpdates = allUpdates.filter(update => {
-        if (currentUser && currentUser.role === 'admin') return true; 
-        return !update.state || update.state === 'All' || update.state === userState;
-    });
-
-    updatesContainer.innerHTML = '';
-    
-    if (applicableUpdates.length === 0) {
-        updatesContainer.innerHTML = '<p style="text-align:center;">No official updates at this time.</p>';
-        return;
-    }
-
-    applicableUpdates.forEach(update => {
-        const safeState = (update.state && String(update.state) !== 'undefined') ? update.state : 'All';
-        const stateTag = safeState === 'All' ? '🇮🇳 Central Update' : `📍 ${safeState} Update`;
-        const localTag = update.id > 1000000000000 ? `<span style="background:#0cc832; color:white; padding:2px 6px; border-radius:4px; font-size:0.7rem; margin-left:5px;">Live Post</span>` : '';
-
-        updatesContainer.innerHTML += `
-            <div class="update-card ${update.isUrgent ? 'urgent' : ''}" style="text-align: left;">
-                <div style="display:flex; justify-content:space-between; flex-wrap:wrap; gap: 10px;">
-                    <div><span class="official-badge ${update.isUrgent ? 'urgent' : ''}">${update.isUrgent ? '⚠️ URGENT ALERT' : '✅ VERIFIED GOVT UPDATE'}</span>${localTag}</div>
-                    <span style="font-size: 0.8rem; color: #666; font-weight: bold;">${stateTag}</span>
-                </div>
-                <h3 style="margin: 0.5rem 0; color: #333;">${update.title}</h3>
-                <p style="font-size: 1.05rem; line-height: 1.5;">${update.message}</p>
-                <span style="font-size: 0.85rem; color: #666;">Posted on: ${update.date}</span>
-            </div>
-        `;
-    });
-}
-
+// 4. Vigilance Logic
 function openCorruptionModal() {
     document.getElementById('corruptionModal').classList.add('show');
     document.getElementById('corruptionForm').style.display = 'block';
@@ -4331,6 +4201,34 @@ function submitCorruptionReport(event) {
     document.getElementById('trackingIdDisplay').innerText = trackingId;
     document.getElementById('vigilanceSuccess').style.display = 'block';
     document.getElementById('corruptionForm').reset();
+}
+
+// 5. Application Tracking Logic
+function trackApplication() {
+    const appIdInput = document.getElementById('trackAppId');
+    const resultDiv = document.getElementById('trackingResult');
+    const displayId = document.getElementById('displayTrackId');
+    
+    if (appIdInput && appIdInput.value.trim() === '') {
+        alert("Please enter a valid Application ID (e.g., APP-1234)");
+        return;
+    }
+
+    const btn = document.querySelector('button[onclick="trackApplication()"]');
+    const originalText = btn.innerText;
+    btn.innerText = "Connecting to Govt Server...";
+    btn.style.opacity = "0.7";
+    resultDiv.style.display = 'none';
+
+    setTimeout(() => {
+        btn.innerText = originalText;
+        btn.style.opacity = "1";
+        
+        displayId.innerText = appIdInput.value.toUpperCase();
+        resultDiv.style.display = 'block';
+        
+        resultDiv.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+    }, 1200); 
 }
 // --- [NEW] STOCK MARKET STYLE PRICING ENGINE ---
 
